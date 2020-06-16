@@ -1,0 +1,10 @@
+[Unit]
+Description=Oven Server
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python3 /home/pi/OvenCntrl/ovenServer.py
+
+[Install]
+WantedBy=multi-user.target
