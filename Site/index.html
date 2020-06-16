@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+		<title>RbRy Oven Control</title>
+	    	<!-- Bootstrap -->
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+
+	    	<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+	    	<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+	    	<!--[if lt IE 9]>
+	      		<script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+	      		<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+	    	<![endif]-->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="js/bootstrap.min.js"></script>
+  	</head>
+  	<body>
+        <div class ="container">
+            <div class="row">
+                <div class="col-md-3">
+                    <h4>PID Status:</h4>
+                    <p id="pidStatus"></p>
+                </div>
+                <div class="col-md-3">
+                    <h4>Current Temperature:</h4>
+                    <p id = "temp"></p>
+                </div>
+                <div class="col-md-3">
+                    <h4>Current Set Point:</h4>
+                    <p id = "currSetPoint"></p>
+                </div>
+                <div class="col-md-3">
+                    <h4>Desired Set Point:</h4>
+                    <input type="number" name="Desired Temperature" id="desiredTemp">
+                    <button type="button" class="btn btn-primary" id="setPointButton">Set Temp</button>
+                </div>
+            </div>
+            <p></p>
+            <div class ="row">
+                <h4>Alarms:</h4>
+                <div class="col-md-12 column">
+                    <table class="table table-bordered table-hover" id="alarm_table">
+                        <thead>
+                            <tr >
+                                <th class="text-center">
+                                    #
+                                </th>
+                                <th class="text-center">
+                                    Temperature
+                                </th>
+                                <th class="text-center">
+                                    Minute
+                                </th>
+                                <th class="text-center">
+                                    Hour
+                                </th>
+                                <th class="text-center">
+                                    Day
+                                </th>
+                                <th class="text-center">
+                                    Month
+                                </th>
+                                <th class="text-center">
+                                    Year
+                                </th>
+                                <th class="text-center">
+                                    On
+                                </th>
+                                <th class="text-center">
+                                    Recurring
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id='addr0'>
+                                <td>
+                                1
+                                </td>
+                                <td>
+                                    <input type="number" name='temp0'  placeholder=20 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="number" name='min0' placeholder=0 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="number" name='hour0' placeholder=0 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="number" name='day0' placeholder=0 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="number" name='month0' placeholder=0 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="number" name='year0' placeholder=0 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="checkbox" name='on0' placeholder=0 class="form-control"/>
+                                </td>
+                                <td>
+                                    <input type="checkbox" name='recurring0' placeholder=0 class="form-control"/>
+                                </td>
+                            </tr>
+                            <tr id='addr1'></tr>
+                        </tbody>
+                    </table>
+		          </div>
+            </div>
+            <div class="btn-toolbar">
+                <button type="button" id="add_row" class="btn btn-primary btn_sm">Add Row</button>
+                <button type="button" id="delete_row" class="btn btn-primary btn_sm">Delete Row</button>
+                <button type="button" id="save_alarms" class="btn btn-primary btn_sm">Save Alarms</button>
+            </div>
+            <div class="row">
+                <h3>Help</h3>
+                <h4>Temperatures & PID:</h4>
+                <p>The current PID status (on or off), current oven temperature and set oven temperature are displayed at the top of the page. These are updated every 5s, in the case of the oven temperature, or every 60s, in the case of the PID status or set point. All temperatures are displayed in celsius.</p>
+                <h4>Changing Set Point Manually:</h4>
+                <p>Enter a number in the "Desired Set Point" field and click "Set Temp". The new set value will immediately be sent to the oven and applied.</p>
+                <h4>Setting alarms:</h4>
+                <p>
+                    On page load the alarm table will be populated if any alarms are present on the server (if not the table will be a single blank row). To modify the server alarm table modify the table as desired and click the "Save Alarms" button. 
+                </p>
+                <p>
+                    An alarm will fire when the current timestamp is equal to that in the alarm row AND the "On" checkbox is ticked (if it is not ticked the alarm is effectively disabled). If the "Recurring" checkbox is ticked the alarm will continue to be enabled after it fires, if not the alarm will disable itself after firing.</p>
+                <p>
+                    For the alarm timestamp one may set a particular minute, hour, day, month, year that the alarm is to fire on (Note: 24 hour time is used here). However, if you don't care about one of these parameters, for instance if you want the alarm to always fire regardless of what year it is, you can set the value of that parameter to -1 for minute & hour or 0 for day, month & year.
+                </p>
+            </div>
+        </div>
+        <script>
+            //Functions performed on site load
+			window.onload = function start(){
+				updateTemp();
+                updateSetPoint();
+                checkPIDStatus();
+                //Intervals are in ms
+				setInterval(function(){updateTemp()},20000);
+                setInterval(function(){updateSetPoint()},60000);
+			}
+            //Grabs temperature data from oven
+			function updateTemp(){
+			   	var xmlHttp = new XMLHttpRequest();
+				xmlHttp.onreadystatechange = function(){
+					if(this.readyState == 4 && this.status == 200){
+						document.getElementById("temp").innerHTML=xmlHttp.responseText;
+					}
+				};
+                    //xmlHttp.open( "GET", "http://129.2.116.108:8080/temperature", true);
+                    var addr = window.location.href;
+                    xmlHttp.open( "GET", addr.replace("/oven/","") + ":8080/temperature", true);
+				//xmlHttp.open( "GET", "http://192.168.10.101:8080/temperature", true);
+				xmlHttp.send( );
+			}
+            //Grabs set point from oven
+            function updateSetPoint(){
+			   	var xmlHttp = new XMLHttpRequest();
+				xmlHttp.onreadystatechange = function(){
+					if(this.readyState == 4 && this.status == 200){
+						document.getElementById("currSetPoint").innerHTML=xmlHttp.responseText;
+					}
+				};
+                    //xmlHttp.open( "GET", "http://129.2.116.108:8080/setPoint", true);
+                    var addr = window.location.href;
+                    xmlHttp.open( "GET", addr.replace("/oven/","") + ":8080/setPoint", true);
+				//xmlHttp.open( "GET", "http://192.168.10.101:8080/setPoint", true);
+				xmlHttp.send( );
+			}
+            //Alters set point of oven
+            function changeSetPoint(setPointValue){
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.onreadystatechange = function(){
+					if(this.readyState == 4 && this.status == 200){
+						console.log(xmlHttp.responseText);
+					}
+				};
+                //xmlHttp.open('POST', "http://129.2.116.108:8080/setPoint",true);
+                var addr = window.location.href;
+                xmlHttp.open( "POST", addr.replace("/oven/","") + ":8080/setPoint", true);
+                //xmlHttp.open('POST', "http://192.168.10.101:8080/setPoint",true);
+		xmlHttp.setRequestHeader('Content-Type',"application/json;charset=UTF-8");
+                xmlHttp.send(JSON.stringify({'key':"105457Js",'setPoint': setPointValue}));
+            }
+            //Sends alarm array to oven server
+            function sendAlarms(alarmJSON){
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.onreadystatechange = function(){
+                    if(this.readyState == 4 && this.status == 200){
+                        console.log(xmlHttp.responseText);
+                    }
+                };
+                //xmlHttp.open('POST',"http://129.2.116.108:8080/alarms",true);
+                var addr = window.location.href;
+                xmlHttp.open( "POST", addr.replace("/oven/","") + ":8080/alarms", true);
+                xmlHttp.setRequestHeader('Content-Type',"application/json;charset=UTF-8");
+                xmlHttp.send(JSON.stringify(alarmJSON));
+            }
+            //Checks if PID is enabled
+            function checkPIDStatus(){
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.onreadystatechange = function(){
+					if(this.readyState == 4 && this.status == 200){
+                        if(xmlHttp.responseText == "True"){
+                            document.getElementById("pidStatus").innerHTML = "On";
+                        }
+                        else{
+                            document.getElementById("pidStatus").innerHTML = "Off";
+                        }
+					}
+				};
+                //xmlHttp.open('GET',"http://129.2.116.108:8080/PID",true);
+                var addr = window.location.href;
+                xmlHttp.open( "GET", addr.replace("/oven/","") + ":8080/PID", true);
+                xmlHttp.send();
+            }
+            //Exectutes when setPointButton is clicked
+            $("#setPointButton").on('click',function(e){
+                desiredSetPoint = parseFloat(document.getElementById("desiredTemp").value);
+                if (!Number.isNaN(desiredSetPoint)){
+                    changeSetPoint(desiredSetPoint);
+                    document.getElementById("currSetPoint").innerHTML = desiredSetPoint.toString();
+                }
+            });
+            //Also executes when the site is loaded. This is all jQuery hence the difference. Should probably clear up in the future
+            $(document).ready(function(){
+                //i is the number of alarms in our table
+                var i=1;
+                loadAlarmTable();
+                //This grabs the alarm table from the oven server and fills out the local table on the webpage
+                function loadAlarmTable(){
+                    var addr = window.location.href;
+                    //$.getJSON("http://129.2.116.108:8080/alarms", function(data){
+                    $.getJSON(addr.replace("/oven/","") + ":8080/alarms", function(data){
+                        if(data['alarms'].length != 0){
+                            for(j = 0; j < data['alarms'].length; j++){
+                                if(j!=0){
+                                    $('#addr'+i).html("<td>"+ (i+1) +"</td><td><input name='temp"+i+"' type='number' placeholder=20 class='form-control input-md'  /> </td><td><input  name='min"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='hour"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='day"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='month"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='year"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='on"+i+"' type='checkbox' placeholder=0  class='form-control input-md'></td><td><input  name='recurring"+i+"' type='checkbox' placeholder=0  class='form-control input-md'></td>");
+
+                                    $('#alarm_table').append('<tr id="addr'+(i+1)+'"></tr>');
+                                    i++; 
+                                }
+                                document.getElementsByName("temp"+j.toString())[0].value = data['alarms'][j]['temperature'];
+                                document.getElementsByName("min"+j.toString())[0].value = data['alarms'][j]['minute'];
+                                document.getElementsByName("hour"+j.toString())[0].value = data['alarms'][j]['hour'];
+                                document.getElementsByName("day"+j.toString())[0].value = data['alarms'][j]['day'];
+                                document.getElementsByName("month"+j.toString())[0].value = data['alarms'][j]['month'];
+                                document.getElementsByName("year"+j.toString())[0].value = data['alarms'][j]['year'];
+                                document.getElementsByName("on"+j.toString())[0].checked = data['alarms'][j]['on']
+                                document.getElementsByName("recurring"+j.toString())[0].checked = data['alarms'][j]['recurring']
+                            }
+                        }
+                    });
+                }
+                //This adds a row to the alarm table when the add_row button is clicked
+                $("#add_row").on('click',function(){
+                    $('#addr'+i).html("<td>"+ (i+1) +"</td><td><input name='temp"+i+"' type='number' placeholder=20 class='form-control input-md'  /> </td><td><input  name='min"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='hour"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='day"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='month"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='year"+i+"' type='number' placeholder=0  class='form-control input-md'></td><td><input  name='on"+i+"' type='checkbox' placeholder=0  class='form-control input-md'></td><td><input  name='recurring"+i+"' type='checkbox' placeholder=0  class='form-control input-md'></td>");
+
+                    $('#alarm_table').append('<tr id="addr'+(i+1)+'"></tr>');
+                    i++; 
+                });
+                //Removes a row from the alarm table
+                $("#delete_row").click(function(){
+                    if(i>1){
+                        $("#addr"+(i-1)).html('');
+                        i--;
+                    }
+                });
+                //Sends the alarm table to the oven server
+                $("#save_alarms").on('click',function(){
+                    var jsonList = [];
+                    for(j = 0; j < i; j++){
+                        temp = parseFloat(document.getElementsByName("temp"+j.toString())[0].value);
+                        if(isNaN(temp)){
+                            temp = parseFloat(document.getElementsByName("temp"+j.toString())[0].placeholder);
+                        }
+                        minute = parseFloat(document.getElementsByName("min"+j.toString())[0].value);
+                        if(isNaN(minute)){
+                            minute = parseFloat(document.getElementsByName("min"+j.toString())[0].placeholder);
+                        }
+                        hour = parseFloat(document.getElementsByName("hour"+j.toString())[0].value);
+                        if(isNaN(hour)){
+                            hour = parseFloat(document.getElementsByName("hour"+j.toString())[0].placeholder);
+                        }
+                        day = parseFloat(document.getElementsByName("day"+j.toString())[0].value);
+                        if(isNaN(day)){
+                            day = parseFloat(document.getElementsByName("day"+j.toString())[0].placeholder);
+                        }
+                        month = parseFloat(document.getElementsByName("month"+j.toString())[0].value);
+                        if(isNaN(month)){
+                            month = parseFloat(document.getElementsByName("month"+j.toString())[0].placeholder);
+                        }
+                        year = parseFloat(document.getElementsByName("year"+j.toString())[0].value);
+                        if(isNaN(year)){
+                            year = parseFloat(document.getElementsByName("year"+j.toString())[0].placeholder);
+                        }
+                        on = document.getElementsByName("on"+j.toString())[0].checked;
+                        recurring = document.getElementsByName("recurring"+j.toString())[0].checked;
+                        jsonVal = {"temperature":temp,"minute":minute,"hour":hour,"day":day,"month":month,"year":year,"on":on,"recurring":recurring};
+                        jsonList.push(jsonVal);
+                    }
+                    sendAlarms({"alarms":jsonList, "key":"105457Js"});
+                });
+            });
+        </script>
+  	</body>
+</html>
